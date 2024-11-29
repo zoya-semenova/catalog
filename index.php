@@ -12,6 +12,27 @@ function buildCategoryTree(array $elements, $parentId = 0)
             if ($children) {
                 $element['children'] = $children;
             }
+
+            $branch[] = $element;
+        }
+    }
+
+    return $branch;
+}
+
+function buildCounts($elements, $counts, $parentId = 0)
+{
+    $branch = [];
+
+    foreach ($elements as &$element) {
+        if ($element['id_parent'] == $parentId) {
+            $children = buildCounts($elements, $element['id']);
+
+            if (!isset($element['count'])) {
+                $element['count'] = 0;
+            }
+            $element['count'] += $counts[$element['id']];
+
             $branch[] = $element;
         }
     }
@@ -39,7 +60,7 @@ function renderCategoryTree($categoryTree, $parentId, $html = "")
     $html .= '<ul style="display:' . ($parentId ? "none" : "block") . '">';
     foreach ($categoryTree as $category) {
         $html .= "<li>
-<a  id=" . $category['id'] . " href = '/?group=" . $category['id'] . "'>" . $category['name'] . "</a>";
+<a  id=" . $category['id'] . " href = '/?group=" . $category['id'] . "'>" . $category['name'].' ('.$category['count'].')' . "</a>";
         if (!empty($category['children'])) {
             $html .= renderCategoryTree($category['children'], $category['id']);
         }
@@ -75,13 +96,41 @@ if (!empty($_GET['group'])) {
 
 $sql = $pdo->prepare("SELECT * FROM `groups`");
 $sql->execute();
-$rows = $sql->fetchAll();
+$categories = $sql->fetchAll();
 
-$categoryTree = buildCategoryTree($rows);
+$sql = $pdo->prepare("SELECT * FROM `products` ");
+$sql->execute();
+$products = $sql->fetchAll();
+$counts = [];
+foreach ($products as $item) {
+    if (!isset($counts[$item['id_group']])) {
+        $counts[$item['id_group']] = 0;
+    }
+    $counts[$item['id_group']] += 1;
+}
 
-$categoryTreeRender = renderCategoryTree($categoryTree, $categoryId);
 
-$ids = buildTreeIds($rows, $categoryId);
+//print_r($products);exit;
+$categories = buildCategoryTree($categories);
+//$categoryTree = buildCounts($categories, $counts);
+function count_children(&$categories) {
+    $count = 0;
+    foreach ($categories as &$child) {
+        $count++;
+        if (isset($child['children']) && is_array($child['children'])) {
+            $count += count_children($child['children']);
+        }
+        $child['count'] = $count;
+    }
+    return $count;
+}
+count_children($categories);
+echo "<pre>";print_r($categories);exit;
+//$categoryTree =
+
+$categoryTreeRender = renderCategoryTree($categories, $categoryId);
+
+$ids = buildTreeIds($categories, $categoryId);
 
 $where = "";
 if (!empty($ids)) {
@@ -105,14 +154,12 @@ if ($categoryId) {
     <tr>
         <td>
             <a id='category' style='text-decoration:none; color:black;' href='#'>
-                <span id='category-symbol'>+ </span>
                 Category
             </a>
             <?= $categoryTreeRender ?>
         </td>
         <td>
             <a id='products' style='text-decoration:none; color:black;' href='#'>
-                <span id='products-symbol'>+ </span>
                 Products
             </a>
             <ul>
