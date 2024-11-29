@@ -2,37 +2,45 @@
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
-function buildCategoryTree(array $elements, $parentId = 0)
+function buildCategoryTree(array &$elements, $counts, $parentId = 0, $count=0)
 {
     $branch = [];
-
-    foreach ($elements as $element) {
+//$count=0;
+    foreach ($elements as &$element) {
         if ($element['id_parent'] == $parentId) {
-            $children = buildCategoryTree($elements, $element['id']);
+            $children = buildCategoryTree($elements, $counts, $element['id'], $count);
             if ($children) {
                 $element['children'] = $children;
-            }
+                $element['count'] += count($children);
+               // $count = 0;
 
+                foreach ($children as &$child) {
+                    $count+=$child['count'];
+                }
+
+            }
+            $element['count'] += $count;
             $branch[] = $element;
         }
     }
-
+    $count += count($elements);
     return $branch;
 }
 
-function buildCounts($elements, $counts)
+function buildCounts(&$tree, $counts)
 {
-
-foreach ($elements as &$element) {
-    $ids = buildTreeIds($elements, $element['id']);
     $count = 0;
-    foreach ($ids as $id) {
-        $count += (isset($counts[$id]) ? $counts[$id] : 0);
-    }
-    $element['count'] = $count;
-}
+    foreach ($tree as &$child) {
 
-return $elements;
+
+        if (isset($child['children']) && is_array($child['children'])) {
+            $count+=count($child['children']);
+            $count += buildCounts($child['children'], $counts);
+        }
+        $child['count'] = $count;
+    }
+
+    return $count;
 }
 
 function buildTreeIds(array $elements, $parentId = 0)
@@ -105,10 +113,13 @@ foreach ($products as $item) {
 }
 //echo "<pre>";print_r($counts);exit;
 //print_r($products);exit;
-$categoryTree = buildCounts($categories, $counts);
-$categoryTree = buildCategoryTree($categoryTree);
 
-$categoryTreeRender = renderCategoryTree($categoryTree, $categoryId);
+
+buildCategoryTree($categories, $counts);
+echo "<pre>";print_r($categories);exit;
+//buildCounts($categoryTree, $counts);
+
+$categoryTreeRender = renderCategoryTree($categories, $categoryId);
 
 $ids = buildTreeIds($categories, $categoryId);
 
