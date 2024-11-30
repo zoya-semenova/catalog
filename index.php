@@ -5,7 +5,7 @@ error_reporting(E_ALL);
 function buildCategoryTree(array &$elements, $counts, $parentId = 0, $count=0)
 {
     $branch = [];
-//$count=0;
+$count=0;
     foreach ($elements as &$element) {
         if ($element['id_parent'] == $parentId) {
             $children = buildCategoryTree($elements, $counts, $element['id'], $count);
@@ -23,7 +23,7 @@ function buildCategoryTree(array &$elements, $counts, $parentId = 0, $count=0)
             $branch[] = $element;
         }
     }
-    $count += count($elements);
+    //$count += count($elements);
     return $branch;
 }
 
