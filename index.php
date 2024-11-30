@@ -2,47 +2,38 @@
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
-function buildCategoryTree(array $elements, $counts, $parentId = 0)
+function buildCategoryTree(array $elements, $counts, $parentId = 0, $count = 0)
 {
     $branch = [];
-$count=0;
+
     foreach ($elements as $element) {
+        $count = 0;
         if (!isset($element['count'])) {
             $element['count'] = 0;
         }
+
         if ($element['id_parent'] == $parentId) {
-            $children = buildCategoryTree($elements, $counts, $element['id']);
+
+
+            $children = buildCategoryTree($elements, $counts, $element['id'], $count);
             if ($children) {
                 $element['children'] = $children;
-                $element['count'] += count($children);
+                //$element['count'] += count($children);
+                //$count += (isset($counts[$element['id']]) ? $counts[$element['id']] : 0);
 
                 foreach ($children as $child) {
-                    $count+=$child['count'];
+                    //$count+=$child['count'];
+                    $count += (isset($child['count']) ? $child['count'] : 0);
                 }
 
             }
+            $element['count'] += (isset($counts[$element['id']]) ? $counts[$element['id']] : 0);
             $element['count'] += $count;
             $branch[] = $element;
         }
     }
-    //$count += count($elements);
+
     return $branch;
-}
-
-function buildCounts(&$tree, $counts)
-{
-    $count = 0;
-    foreach ($tree as &$child) {
-
-
-        if (isset($child['children']) && is_array($child['children'])) {
-            $count+=count($child['children']);
-            $count += buildCounts($child['children'], $counts);
-        }
-        $child['count'] = $count;
-    }
-
-    return $count;
 }
 
 function buildTreeIds(array $elements, $parentId = 0)
@@ -66,7 +57,7 @@ function renderCategoryTree($categoryTree, $parentId, $html = "")
     foreach ($categoryTree as $category) {
         $html .= "<li>
         <a  id=" . $category['id'] . " href = '/?group=" . $category['id'] . "'>" .
-            $category['name'].' ('.$category['count'].')' . "</a>";
+            $category['name'] . ' (' . $category['count'] . ')' . "</a>";
         if (!empty($category['children'])) {
             $html .= renderCategoryTree($category['children'], $category['id']);
         }
@@ -114,13 +105,8 @@ foreach ($products as $item) {
     }
     $counts[$item['id_group']] += 1;
 }
-//echo "<pre>";print_r($counts);exit;
-//print_r($products);exit;
-
 
 $categoriesTree = buildCategoryTree($categories, $counts);
-//echo "<pre>";print_r($categories);exit;
-//buildCounts($categoryTree, $counts);
 
 $categoryTreeRender = renderCategoryTree($categoriesTree, $categoryId);
 
@@ -168,7 +154,7 @@ if ($categoryId) {
         $('.child').next('ul').hide();
 
         $("body").on('click', "a", function (e) {
-          //  if ($(this).next().find('ul').is(":visible")) {
+            //  if ($(this).next().find('ul').is(":visible")) {
             href = $(this);
             //console.log(href.attr('href'));
             $.ajax({
