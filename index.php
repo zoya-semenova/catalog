@@ -2,7 +2,7 @@
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
-function buildCategoryTree(array $elements, $counts, $parentId = 0, $count = 0)
+function buildCategoryTree(array $elements, $counts, $parentId = 0)
 {
     $branch = [];
 
@@ -13,7 +13,6 @@ function buildCategoryTree(array $elements, $counts, $parentId = 0, $count = 0)
         }
 
         if ($element['id_parent'] == $parentId) {
-
 
             $children = buildCategoryTree($elements, $counts, $element['id'], $count);
             if ($children) {
@@ -27,6 +26,7 @@ function buildCategoryTree(array $elements, $counts, $parentId = 0, $count = 0)
                 }
 
             }
+            //считаем количество товаров в категории
             $element['count'] += (isset($counts[$element['id']]) ? $counts[$element['id']] : 0);
             $element['count'] += $count;
             $branch[] = $element;
@@ -36,13 +36,13 @@ function buildCategoryTree(array $elements, $counts, $parentId = 0, $count = 0)
     return $branch;
 }
 
-function buildTreeIds(array $elements, $parentId = 0)
+function buildCategoryTreeIds(array $tree, $parentId = 0)
 {
     $ids = [$parentId];
 
-    foreach ($elements as $element) {
+    foreach ($tree as $element) {
         if ($element['id_parent'] == $parentId) {
-            $children = buildTreeIds($elements, $element['id']);
+            $children = buildCategoryTreeIds($tree, $element['id']);
             $ids = array_merge($ids, $children);
             $ids[] = $element['id'];
         }
@@ -68,11 +68,11 @@ function renderCategoryTree($categoryTree, $parentId, $html = "")
     return $html;
 }
 
-function renderProducts($categoryTree)
+function renderProducts($products)
 {
     $html = "";
-    foreach ($categoryTree as $category) {
-        $html .= '<li>' . $category['name'];
+    foreach ($products as $product) {
+        $html .= '<li>' . $product['name'];
         $html .= '</li>';
     }
 
@@ -98,6 +98,7 @@ $categories = $sql->fetchAll();
 $sql = $pdo->prepare("SELECT * FROM `products` ");
 $sql->execute();
 $products = $sql->fetchAll();
+
 $counts = [];
 foreach ($products as $item) {
     if (!isset($counts[$item['id_group']])) {
@@ -110,7 +111,7 @@ $categoriesTree = buildCategoryTree($categories, $counts);
 
 $categoryTreeRender = renderCategoryTree($categoriesTree, $categoryId);
 
-$ids = buildTreeIds($categories, $categoryId);
+$ids = buildCategoryTreeIds($categories, $categoryId);
 
 $where = "";
 if (!empty($ids)) {
@@ -121,6 +122,7 @@ $sql->execute();
 $rows = $sql->fetchAll();
 $products = renderProducts($rows);
 
+//если пришел ajax отдаем участок html со списком продуктов
 if ($categoryId) {
     echo $products;
     exit;
@@ -156,12 +158,14 @@ if ($categoryId) {
         $("body").on('click', "a", function (e) {
             //  if ($(this).next().find('ul').is(":visible")) {
             href = $(this);
-            //console.log(href.attr('href'));
+
+            //при клике на категорию запрашиваем список продуктов
             $.ajax({
                 url: typeof href.attr('href') === 'undefined' ? 0 : href.attr('href'),
                 method: 'get',
                 dataType: 'html',
                 success: function (data) {
+                    //если категория открыта - закрываем, и наоборот
                     if (href.next('ul').is(":visible")) {
                         href.next('ul').hide()
                     } else {
